@@ -17,24 +17,23 @@ export async function isGitRepository(path: string): Promise<boolean> {
 export async function getCurrentFolder(): Promise<string | undefined> {
   const editor = window.activeTextEditor;
   let folder: WorkspaceFolder | undefined;
+  Logger.instance.logInfo(`workspace size: ${workspace.workspaceFolders.length}`);
   if (!workspace.workspaceFolders || workspace.workspaceFolders.length === 0) {
     return undefined;
   }
   if (editor) {
+    Logger.instance.logInfo(`current editor ${editor.document.uri}`);
     // If we have a file:// resource we resolve the WorkspaceFolder this file is from and update
     // the status accordingly.
     const resource = editor.document.uri;
-    if (resource.scheme !== "file") {
-      return undefined;
+    if (resource.scheme === "file") {
+      folder = workspace.getWorkspaceFolder(resource);
     }
-    folder = workspace.getWorkspaceFolder(resource);
-  } else {
-    //if no file is open in the editor, we use the first workspace folder
-    folder = workspace.workspaceFolders[0];
   }
 
   if (!folder) {
-    return undefined;
+    //if no file is open in the editor, we use the first workspace folder
+    folder = workspace.workspaceFolders[0];
   }
   return folder.uri.fsPath;
 }

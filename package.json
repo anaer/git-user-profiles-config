@@ -1,13 +1,13 @@
 {
-  "name": "git-config-user-profiles",
-  "displayName": "Git Config User Profiles",
+  "name": "git-user-profiles-config",
+  "displayName": "Git User Profiles Config",
   "description": "Define multiple git config user profiles and switch them easily using status bar",
-  "version": "1.2.0",
-  "publisher": "onlyutkarsh",
-  "author": "Utkarsh Shigihalli",
+  "version": "1.2.2",
+  "publisher": "anaer",
+  "author": "anaer",
   "repository": {
     "type": "git",
-    "url": "https://github.com/onlyutkarsh/git-config-user-profiles.git"
+    "url": "https://github.com/anaer/git-config-user-profiles.git"
   },
   "icon": "images/icon.png",
   "galleryBanner": {
@@ -35,7 +35,7 @@
     }
   },
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -122,6 +122,16 @@
       "type": "object",
       "title": "Git Config User Profiles",
       "properties": {
+        "gitConfigUser.statusBarLocation": {
+          "type": "string",
+          "default": "left",
+          "description": "Controls the location, They can either show on the left or right of the status bar. eg: left, right"
+        },
+        "gitConfigUser.selectedProfile": {
+          "type": "string",
+          "default": "",
+          "description": "selected profile label"
+        },
         "gitConfigUser.profiles": {
           "type": "array",
           "items": {

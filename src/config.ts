@@ -28,13 +28,6 @@ export async function saveVscProfile(profile: Profile, oldProfileLabel?: string)
     existingProfileIndex = profiles.findIndex((x) => x.label.toLowerCase() === oldProfileLabel.toLowerCase());
   } else {
     existingProfileIndex = profiles.findIndex((x) => x.label.toLowerCase() === profile.label.toLowerCase());
-    if (existingProfileIndex > -1) {
-      // set existing to false if user is making a selection of profile (not updating the profile)
-      profiles.forEach((x) => {
-        x.selected = false;
-        x.label = x.label.replace("$(check)", "").trim();
-      });
-    }
   }
   if (existingProfileIndex > -1) {
     // set existing to false if user is making a selection of profile (not updating the profile)s
@@ -42,13 +35,13 @@ export async function saveVscProfile(profile: Profile, oldProfileLabel?: string)
       x.selected = false;
       x.label = x.label.replace("$(check)", "").trim();
     });
-  }
-  if (existingProfileIndex > -1) {
+
     profiles[existingProfileIndex] = profile;
   } else {
     profiles.push(profile);
   }
   await workspace.getConfiguration("gitConfigUser").update("profiles", profiles, ConfigurationTarget.Global);
+  await workspace.getConfiguration("gitConfigUser").update("selectedProfile", profile.label, ConfigurationTarget.Workspace);
 }
 
 export function getVscProfile(profileName: string): Profile | undefined {
@@ -57,4 +50,9 @@ export function getVscProfile(profileName: string): Profile | undefined {
     return Object.assign({}, filtered[0]);
   }
   return undefined;
+}
+
+export function getVscSelectedProfiles(): Profile | undefined {
+  const profileName = workspace.getConfiguration("gitConfigUser").get<string>("selectedProfile");
+  return getVscProfile(profileName);
 }

@@ -1,7 +1,7 @@
 import { basename } from "path";
 import sgit from "simple-git";
 import { commands, window } from "vscode";
-import { getVscProfiles, saveVscProfile } from "./config";
+import { getVscProfiles, saveVscProfile, getVscSelectedProfiles } from "./config";
 import * as constants from "./constants";
 import * as controls from "./controls";
 import { Profile } from "./models";
@@ -78,7 +78,7 @@ async function pickEmail(input: controls.MultiStepInput, state: Partial<controls
  * @param notProfileSwitch when has selected profile and want to select new one
  */
 export async function getUserProfile(fromStatusBar = false, notProfileSwitch = true): Promise<Profile> {
-  Logger.instance.logInfo(`Getting user profiles. Triggerred from status bar = ${fromStatusBar}`);
+  Logger.instance.logInfo(`Getting user profiles. Triggered from status bar = ${fromStatusBar}`);
   const profilesInVscConfig = getVscProfiles();
   const emptyProfile = <Profile>{
     label: constants.Application.APPLICATION_NAME,
@@ -87,8 +87,8 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
     userName: "NA",
   };
 
-  const selectedProfileInVscConfig = profilesInVscConfig.filter((x) => x.selected) || [];
-  const selectedVscProfile: Profile = selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : emptyProfile;
+  const selectedProfileInVscConfig =  profilesInVscConfig.filter((x) => x.selected) || [];
+  const selectedVscProfile: Profile = getVscSelectedProfiles() || selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : emptyProfile;
 
   //TODO: Show error if the user deliberately deletes the username or email property from config
   if (selectedVscProfile.label === undefined || selectedVscProfile.userName === undefined || selectedVscProfile.email === undefined) {
@@ -118,9 +118,7 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
     //if configs found, but none are selected, if from statusbar show picklist else silent
     //if multiple items have selected = true (due to manual change) return the first one
     return selectedVscProfile;
-  }
-
-  if (fromStatusBar) {
+  } else {
     if (profilesInVscConfig.length === 0) {
       //if no profiles in config, prompt user to create (even if its non git workspace)
       const selected = await window.showInformationMessage("No user profiles defined. Do you want to define one now?", "Yes", "No");
@@ -203,6 +201,12 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
         pickedProfile.selected = true;
         await saveVscProfile(Object.assign({}, pickedProfile));
         const selectedProfile = await getUserProfile(true, false); //dont show popup if user is switching profile
+
+        // 选择完后, 直接生效
+        await sgit(workspaceFolder).addConfig("user.name", selectedProfile.userName);
+        await sgit(workspaceFolder).addConfig("user.email", selectedProfile.email);
+        window.showInformationMessage("User name and email updated in git config file.");
+
         return selectedProfile;
       } else {
         // profile is already set in the statusbar,
@@ -283,23 +287,33 @@ export async function syncVscProfilesWithGitConfig(): Promise<void> {
   // let gitProfile: { userName: string; email: string };
   const gitProfile = await util.getCurrentGitConfig(validatedWorkspace.folder);
 
-  // return an empty object if no git profile found
-  if (util.isNameAndEmailEmpty(gitProfile)) {
-    //UTK ask user to create a local git config
-    const response = await window.showInformationMessage(
-      `No user details found in git config of the repo '${basename(validatedWorkspace.folder)}'. Do you want to create a new user detail profile now?`,
-      "Yes",
-      "No"
-    );
-    if (response == undefined || response == "No") {
-      return;
-    }
-    await createUserProfile();
-    return;
-  }
-
   // get all existing vsc profiles
   const vscProfiles = getVscProfiles();
+
+  // return an empty object if no git profile found
+  if (util.isNameAndEmailEmpty(gitProfile)) {
+    if (vscProfiles.length > 0) {
+      const selectedProfileInVscConfig = vscProfiles.filter((x) => x.selected) || [];
+      const selectedVscProfile: Profile = selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : vscProfiles[0];
+
+      const workspaceFolder = validatedWorkspace.folder ? validatedWorkspace.folder : ".\\";
+      await sgit(workspaceFolder).addConfig("user.name", selectedVscProfile.userName);
+      await sgit(workspaceFolder).addConfig("user.email", selectedVscProfile.email);
+      window.showInformationMessage("Local Git config unset user info. Auto sync profile from vscConfig.");
+    } else {
+      const response = await window.showInformationMessage(
+        `No user details found in git config of the repo '${basename(validatedWorkspace.folder)}'. Do you want to create a new user detail profile now?`,
+        "Yes",
+        "No"
+      );
+      if (response == undefined || response == "No") {
+        return;
+      }
+      await createUserProfile();
+    }
+
+    return;
+  }
 
   // set selected = false for all selected vsc profiles
   await Promise.all(
