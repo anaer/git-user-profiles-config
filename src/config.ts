@@ -1,6 +1,7 @@
 import { ConfigurationTarget, workspace } from "vscode";
 import { Profile } from "./models";
 import * as util from "./util";
+import { Logger } from "./util/logger";
 
 export function getVscProfiles(): Profile[] {
   const profiles = workspace.getConfiguration("gitConfigUser").get<Profile[]>("profiles");
@@ -54,5 +55,6 @@ export function getVscProfile(profileName: string): Profile | undefined {
 
 export function getVscSelectedProfiles(): Profile | undefined {
   const profileName = workspace.getConfiguration("gitConfigUser").get<string>("selectedProfile");
+  // Logger.instance.logInfo(`selectedProfile: ${profileName}`);
   return getVscProfile(profileName);
 }

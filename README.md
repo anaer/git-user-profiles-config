@@ -8,12 +8,18 @@
    ![](images/status-bar.png)
 
 2. 选择 profile 后, 将 profiles 信息还是保存到Global全局配置下, 同时保存配置名selectedProfile到当前workspace配置下.
+
    2.1 因为存在开多个窗口, 对应的多个仓库(gitlab, github 等), 而且账号信息不同的情况.
+
    2.2 因为可能会提交.vscode目录, 所以只保存selectedProfile配置名, 不存具体信息等
+
 3. 选中 profile 后, 立即更新 git config 中, 不再二次确认.
 4. 首次打开项目时, 如项目下.git/config 中未配置用户信息,
+
    4.1 如有配置 profiles, 则自动行设置, 默认选择 selected, 如无 selected 的, 取第一个
+
    4.2 如未配置 profiles, 走原逻辑, 提示新增 user profile
+
 5. 以上是针对个人使用情况进行的修改.
 
 ## 命令记录

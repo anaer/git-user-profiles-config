@@ -78,7 +78,7 @@ async function pickEmail(input: controls.MultiStepInput, state: Partial<controls
  * @param notProfileSwitch when has selected profile and want to select new one
  */
 export async function getUserProfile(fromStatusBar = false, notProfileSwitch = true): Promise<Profile> {
-  Logger.instance.logInfo(`Getting user profiles. Triggered from status bar = ${fromStatusBar}`);
+  Logger.instance.logInfo(`Getting user profiles. Triggered from status bar = ${fromStatusBar}, not profile switch = ${notProfileSwitch}`);
   const profilesInVscConfig = getVscProfiles();
   const emptyProfile = <Profile>{
     label: constants.Application.APPLICATION_NAME,
@@ -88,7 +88,9 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
   };
 
   const selectedProfileInVscConfig =  profilesInVscConfig.filter((x) => x.selected) || [];
-  const selectedVscProfile: Profile = getVscSelectedProfiles() || selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : emptyProfile;
+  const selectedVscProfile: Profile = getVscSelectedProfiles() || (selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : emptyProfile);
+
+  Logger.instance.logInfo(`selected vsc profile: '${util.trimLabelIcons(selectedVscProfile.label)}'`);
 
   //TODO: Show error if the user deliberately deletes the username or email property from config
   if (selectedVscProfile.label === undefined || selectedVscProfile.userName === undefined || selectedVscProfile.email === undefined) {

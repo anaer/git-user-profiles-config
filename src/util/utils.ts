@@ -22,7 +22,7 @@ export async function getCurrentFolder(): Promise<string | undefined> {
     return undefined;
   }
   if (editor) {
-    Logger.instance.logInfo(`current editor ${editor.document.uri}`);
+    // Logger.instance.logInfo(`current editor ${editor.document.uri}`);
     // If we have a file:// resource we resolve the WorkspaceFolder this file is from and update
     // the status accordingly.
     const resource = editor.document.uri;
