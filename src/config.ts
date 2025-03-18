@@ -56,5 +56,5 @@ export function getVscProfile(profileName: string): Profile | undefined {
 export function getVscSelectedProfiles(): Profile | undefined {
   const profileName = workspace.getConfiguration("gitConfigUser").get<string>("selectedProfile");
   // Logger.instance.logInfo(`selectedProfile: ${profileName}`);
-  return getVscProfile(profileName);
+  return profileName ? getVscProfile(profileName) : undefined;
 }

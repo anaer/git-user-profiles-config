@@ -6,7 +6,7 @@ export const CommandIds = {
 };
 
 export const Application = {
-    APPLICATION_NAME: "Git Config User Profiles",
+    APPLICATION_NAME: "Git User Config Profiles",
 };
 
 export const Messages = {

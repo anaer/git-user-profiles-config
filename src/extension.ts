@@ -45,7 +45,7 @@ export async function activate(context: ExtensionContext) {
     await commands.executeCommand(constants.CommandIds.SYNC_VSC_PROFILES_WITH_GIT_CONFIG);
     await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false);
   } catch (error) {
-    Logger.instance.logError("Error ocurred", error);
+    Logger.instance.logError("Error ocurred", error as Error | string | undefined);
   }
 }
 

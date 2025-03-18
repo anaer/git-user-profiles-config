@@ -1,7 +1,7 @@
 import { basename } from "path";
 import sgit from "simple-git";
 import { commands, window } from "vscode";
-import { getVscProfiles, saveVscProfile, getVscSelectedProfiles } from "./config";
+import { getVscProfiles, saveVscProfile, getVscProfile, getVscSelectedProfiles } from "./config";
 import * as constants from "./constants";
 import * as controls from "./controls";
 import { Profile } from "./models";
@@ -80,115 +80,108 @@ async function pickEmail(input: controls.MultiStepInput, state: Partial<controls
 export async function getUserProfile(fromStatusBar = false, notProfileSwitch = true): Promise<Profile> {
   Logger.instance.logInfo(`Getting user profiles. Triggered from status bar = ${fromStatusBar}, not profile switch = ${notProfileSwitch}`);
   const profilesInVscConfig = getVscProfiles();
-  const emptyProfile = <Profile>{
+  const emptyProfile: Profile = {
     label: constants.Application.APPLICATION_NAME,
     selected: false,
     email: "NA",
     userName: "NA",
   };
 
-  const selectedProfileInVscConfig =  profilesInVscConfig.filter((x) => x.selected) || [];
+  const selectedProfileInVscConfig = profilesInVscConfig.filter((x) => x.selected) || [];
   const selectedVscProfile: Profile = getVscSelectedProfiles() || (selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : emptyProfile);
 
-  Logger.instance.logInfo(`selected vsc profile: '${util.trimLabelIcons(selectedVscProfile.label)}'`);
+  Logger.instance.logInfo(`Selected VSC profile: '${util.trimLabelIcons(selectedVscProfile.label)}'`);
 
-  //TODO: Show error if the user deliberately deletes the username or email property from config
-  if (selectedVscProfile.label === undefined || selectedVscProfile.userName === undefined || selectedVscProfile.email === undefined) {
+  // Validate profile properties
+  if (!selectedVscProfile.label || !selectedVscProfile.userName || !selectedVscProfile.email) {
     window.showErrorMessage("One of label, userName or email properties is missing in the config. Please verify.");
     return emptyProfile;
   }
 
   const validatedWorkspace = await util.isValidWorkspace();
+  const workspaceFolder = validatedWorkspace.folder || ".\\";
 
   let configInSync = false;
-  if (validatedWorkspace.isValid && validatedWorkspace.folder) {
-    const currentGitConfig = await util.getCurrentGitConfig(validatedWorkspace.folder);
+  if (validatedWorkspace.isValid) {
+    const currentGitConfig = await util.getCurrentGitConfig(workspaceFolder);
     configInSync = !util.isNameAndEmailEmpty(currentGitConfig) && util.hasSameNameAndEmail(currentGitConfig, selectedVscProfile);
+
+    if (!configInSync) {
+      const sameLabelProfile = getVscProfile(selectedVscProfile.label);
+      if (sameLabelProfile) {
+        updateGitConfig(workspaceFolder, selectedVscProfile)
+        window.showInformationMessage("User name and email auto-updated in git config file.");
+        return sameLabelProfile;
+      }
+    }
   }
 
   if (!fromStatusBar) {
-    if (profilesInVscConfig.length === 0) {
-      //if profile loaded automatically and no config found
-      //OR if no config found and user clicks on "no profile" on status bar, send undefined to show picklist
+    if (profilesInVscConfig.length === 0 || !validatedWorkspace.isValid) {
       return emptyProfile;
     }
-
-    if (validatedWorkspace.isValid === false) {
-      return emptyProfile;
-    }
-
-    //if configs found, but none are selected, if from statusbar show picklist else silent
-    //if multiple items have selected = true (due to manual change) return the first one
     return selectedVscProfile;
-  } else {
-    if (profilesInVscConfig.length === 0) {
-      //if no profiles in config, prompt user to create (even if its non git workspace)
-      const selected = await window.showInformationMessage("No user profiles defined. Do you want to define one now?", "Yes", "No");
-      if (selected === "Yes") {
-        await commands.executeCommand(constants.CommandIds.CREATE_USER_PROFILE);
-      }
-      return emptyProfile;
+  }
+
+  if (profilesInVscConfig.length === 0) {
+    const selected = await window.showInformationMessage("No user profiles defined. Do you want to define one now?", "Yes", "No");
+    if (selected === "Yes") {
+      await commands.executeCommand(constants.CommandIds.CREATE_USER_PROFILE);
     }
+    return emptyProfile;
+  }
 
-    let response;
+  let response;
+  if (!validatedWorkspace.isValid) {
+    window.showErrorMessage(validatedWorkspace.message);
+    return emptyProfile;
+  }
 
-    if (validatedWorkspace.isValid === false) {
-      window.showErrorMessage(validatedWorkspace.message);
-      return emptyProfile;
-    }
-    const workspaceFolder = validatedWorkspace.folder ? validatedWorkspace.folder : ".\\";
-    if (selectedProfileInVscConfig.length === 0) {
-      response = await window.showInformationMessage(
-        `You have ${profilesInVscConfig.length} profile(s) in settings. What do you want to do?`,
-        "Pick a profile",
-        "Edit existing",
-        "Create new"
-      );
-    } else if (notProfileSwitch) {
-      const notSyncOptions = ["Yes, apply", "No, pick another", "Edit existing", "Create new"];
-      const syncOptions = ["Apply again", "Pick a profile", "Edit existing", "Create new"];
+  if (selectedProfileInVscConfig.length === 0) {
+    response = await window.showInformationMessage(
+      `You have ${profilesInVscConfig.length} profile(s) in settings. What do you want to do?`,
+      "Pick a profile",
+      "Edit existing",
+      "Create new"
+    );
+  } else if (notProfileSwitch) {
+    const options = configInSync
+      ? ["Apply again", "Pick a profile", "Edit existing", "Create new"]
+      : ["Yes, apply", "No, pick another", "Edit existing", "Create new"];
+    const message = configInSync
+      ? `Repo '${basename(workspaceFolder)}' is already using user details from the profile '${util.trimLabelIcons(selectedVscProfile.label)}'. What do you want to do?`
+      : `You have selected profile '${util.trimLabelIcons(selectedVscProfile.label)}', but the repo '${basename(workspaceFolder)}' is not using user details from this profile. Do you want to apply the user details from profile '${util.trimLabelIcons(selectedVscProfile.label)}'?`;
 
-      const options = configInSync ? syncOptions : notSyncOptions;
-      const message = configInSync
-        ? `Repo '${basename(workspaceFolder)}' is already using user details from the profile '${util.trimLabelIcons(selectedVscProfile.label)}'. What do you want to do?`
-        : `You have selected profile '${util.trimLabelIcons(selectedVscProfile.label)}', but the repo '${basename(
-            workspaceFolder
-          )}' is not using user details from this profile. Do you want to apply the user details from profile '${util.trimLabelIcons(selectedVscProfile.label)}'?`;
+    response = await window.showInformationMessage(message, ...options);
+  }
 
-      response = await window.showInformationMessage(message, ...options);
-    }
+  if (!response) {
+    return selectedVscProfile;
+  }
 
-    if (response === undefined) {
-      return selectedVscProfile;
-    }
-    if (response === "Edit existing") {
+  switch (response) {
+    case "Edit existing":
       await editUserProfile();
-      return selectedVscProfile;
-    }
-    if (response === "Yes, apply" || response === "Apply again") {
-      //no chance of getting undefined value here as validWorkSpace.result will always be true
+      break;
+    case "Yes, apply":
+    case "Apply again":
       await sgit(workspaceFolder).addConfig("user.name", selectedVscProfile.userName);
       await sgit(workspaceFolder).addConfig("user.email", selectedVscProfile.email);
       window.showInformationMessage("User name and email updated in git config file.");
-      return selectedVscProfile;
-    }
-    if (response === "Create new") {
+      break;
+    case "Create new":
       await createUserProfile();
-      return selectedVscProfile;
-    }
-    if (response === "No, pick another" || response === "Pick a profile") {
-      //show picklist only if no profile is marked as selected in config.
-      //this can happen only when setting up config for the first time or user deliberately changed config
+      break;
+    case "No, pick another":
+    case "Pick a profile":
       const pickedProfile = await window.showQuickPick<Profile>(
-        profilesInVscConfig.map((x) => {
-          return {
-            label: x.label,
-            userName: x.userName,
-            email: x.email,
-            selected: x.selected,
-            detail: `${x.userName} (${x.email}) `,
-          };
-        }),
+        profilesInVscConfig.map((x) => ({
+          label: x.label,
+          userName: x.userName,
+          email: x.email,
+          selected: x.selected,
+          detail: `${x.userName} (${x.email}) `,
+        })),
         {
           canPickMany: false,
           matchOnDetail: false,
@@ -198,29 +191,18 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
       );
 
       if (pickedProfile) {
-        pickedProfile.detail = undefined;
-        pickedProfile.label = pickedProfile.label;
         pickedProfile.selected = true;
-        await saveVscProfile(Object.assign({}, pickedProfile));
-        const selectedProfile = await getUserProfile(true, false); //dont show popup if user is switching profile
-
-        // 选择完后, 直接生效
+        await saveVscProfile({ ...pickedProfile });
+        const selectedProfile = await getUserProfile(true, false);
         await sgit(workspaceFolder).addConfig("user.name", selectedProfile.userName);
         await sgit(workspaceFolder).addConfig("user.email", selectedProfile.email);
         window.showInformationMessage("User name and email updated in git config file.");
-
         return selectedProfile;
-      } else {
-        // profile is already set in the statusbar,
-        // user clicks statusbar, picklist is shown to switch profiles, but user does not pick anything
-        // leave selected as is
-        if (selectedProfileInVscConfig.length > 0 && fromStatusBar) {
-          return selectedVscProfile;
-        }
       }
-    }
+      break;
   }
-  return emptyProfile;
+
+  return selectedVscProfile;
 }
 
 export async function editUserProfile() {
@@ -278,71 +260,61 @@ export async function editUserProfile() {
  * @returns local git config profile if exists, otherwise an object with `userName` and `email` are empty string.
  */
 export async function syncVscProfilesWithGitConfig(): Promise<void> {
-  // check if is valid git workspace
   const validatedWorkspace = await util.isValidWorkspace();
-  if (!(validatedWorkspace.isValid && validatedWorkspace.folder)) {
-    // window.showWarningMessage(Constants.Messages.NOT_A_VALID_REPO);
+  if (!validatedWorkspace.isValid || !validatedWorkspace.folder) {
     return;
   }
 
-  // get git config profile
-  // let gitProfile: { userName: string; email: string };
   const gitProfile = await util.getCurrentGitConfig(validatedWorkspace.folder);
-
-  // get all existing vsc profiles
   const vscProfiles = getVscProfiles();
 
-  // return an empty object if no git profile found
   if (util.isNameAndEmailEmpty(gitProfile)) {
     if (vscProfiles.length > 0) {
-      const selectedProfileInVscConfig = vscProfiles.filter((x) => x.selected) || [];
-      const selectedVscProfile: Profile = selectedProfileInVscConfig.length > 0 ? selectedProfileInVscConfig[0] : vscProfiles[0];
-
-      const workspaceFolder = validatedWorkspace.folder ? validatedWorkspace.folder : ".\\";
-      await sgit(workspaceFolder).addConfig("user.name", selectedVscProfile.userName);
-      await sgit(workspaceFolder).addConfig("user.email", selectedVscProfile.email);
-      window.showInformationMessage("Local Git config unset user info. Auto sync profile from vscConfig.");
+      const selectedProfile = vscProfiles.find((x) => x.selected) || vscProfiles[0];
+      await updateGitConfig(validatedWorkspace.folder, selectedProfile);
+      window.showInformationMessage("Local Git config unset user info. Auto-synced profile from VSC config.");
     } else {
       const response = await window.showInformationMessage(
         `No user details found in git config of the repo '${basename(validatedWorkspace.folder)}'. Do you want to create a new user detail profile now?`,
         "Yes",
         "No"
       );
-      if (response == undefined || response == "No") {
-        return;
+      if (response === "Yes") {
+        await createUserProfile();
       }
-      await createUserProfile();
     }
-
     return;
   }
 
-  // set selected = false for all selected vsc profiles
-  await Promise.all(
-    vscProfiles
-      .filter((vscProfile) => vscProfile.selected)
-      .map(async (vscProfile) => {
-        vscProfile.selected = false;
-        await saveVscProfile(vscProfile, vscProfile.label);
-      })
-  );
+  await deselectAllProfiles(vscProfiles);
 
-  // update corresponding vsc profile, if it exists, otherwise add it to vsc cofig
-  const correspondingVscProfile = vscProfiles.filter((vscProfile) => util.hasSameNameAndEmail(vscProfile, gitProfile));
-
-  if (correspondingVscProfile.length >= 1) {
-    // only select the first appearance
-    correspondingVscProfile[0].selected = true;
-    await saveVscProfile(correspondingVscProfile[0], correspondingVscProfile[0].label);
+  const matchingProfile = vscProfiles.find((profile) => util.hasSameNameAndEmail(profile, gitProfile));
+  if (matchingProfile) {
+    matchingProfile.selected = true;
+    await saveVscProfile(matchingProfile, matchingProfile.label);
   } else {
-    // add the git config profile to vsc config
     const newProfile: Profile = {
       label: util.trimLabelIcons(gitProfile.userName),
       userName: gitProfile.userName,
       email: gitProfile.email,
       selected: true,
-      detail: `${gitProfile.userName} (${gitProfile.email}) `,
     };
     await saveVscProfile(newProfile);
   }
+}
+
+async function updateGitConfig(folder: string, profile: Profile): Promise<void> {
+  await sgit(folder).addConfig("user.name", profile.userName);
+  await sgit(folder).addConfig("user.email", profile.email);
+}
+
+async function deselectAllProfiles(profiles: Profile[]): Promise<void> {
+  await Promise.all(
+    profiles
+      .filter((profile) => profile.selected)
+      .map(async (profile) => {
+        profile.selected = false;
+        await saveVscProfile(profile, profile.label);
+      })
+  );
 }
