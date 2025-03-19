@@ -2,7 +2,7 @@
   "name": "git-user-profiles-config",
   "displayName": "Git User Profiles Config",
   "description": "Define multiple git config user profiles and switch them easily using status bar",
-  "version": "1.2.4",
+  "version": "1.2.6",
   "publisher": "anaer",
   "author": "anaer",
   "repository": {

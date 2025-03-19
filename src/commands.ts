@@ -110,7 +110,7 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
       const sameLabelProfile = getVscProfile(selectedVscProfile.label);
       if (sameLabelProfile) {
         updateGitConfig(workspaceFolder, selectedVscProfile)
-        window.showInformationMessage("User name and email auto-updated in git config file.");
+        // window.showInformationMessage("User name and email auto-updated in git config file.");
         return sameLabelProfile;
       }
     }
@@ -290,16 +290,26 @@ export async function syncVscProfilesWithGitConfig(): Promise<void> {
 
   const matchingProfile = vscProfiles.find((profile) => util.hasSameNameAndEmail(profile, gitProfile));
   if (matchingProfile) {
+    // If a profile with the same name and email exists, select it
     matchingProfile.selected = true;
     await saveVscProfile(matchingProfile, matchingProfile.label);
   } else {
-    const newProfile: Profile = {
-      label: util.trimLabelIcons(gitProfile.userName),
-      userName: gitProfile.userName,
-      email: gitProfile.email,
-      selected: true,
-    };
-    await saveVscProfile(newProfile);
+    // Check if a profile with the same label exists
+    const matchingLabelProfile = vscProfiles.find((profile) => profile.label.toLowerCase() === gitProfile.userName.toLowerCase());
+    if (matchingLabelProfile) {
+      // If a profile with the same label exists, select it
+      matchingLabelProfile.selected = true;
+      await saveVscProfile(matchingLabelProfile, matchingLabelProfile.label);
+    } else {
+      // Create a new profile if no matching profile or label is found
+      const newProfile: Profile = {
+        label: util.trimLabelIcons(gitProfile.userName),
+        userName: gitProfile.userName,
+        email: gitProfile.email,
+        selected: true,
+      };
+      await saveVscProfile(newProfile);
+    }
   }
 }
 
