@@ -17,7 +17,7 @@ export async function isGitRepository(path: string): Promise<boolean> {
 export async function getCurrentFolder(): Promise<string | undefined> {
   const editor = window.activeTextEditor;
   let folder: WorkspaceFolder | undefined;
-  Logger.instance.logInfo(`workspace size: ${workspace.workspaceFolders.length}`);
+  // Logger.instance.logInfo(`workspace size: ${workspace.workspaceFolders.length}`);
   if (!workspace.workspaceFolders || workspace.workspaceFolders.length === 0) {
     return undefined;
   }
@@ -125,7 +125,7 @@ export function validateEmail(input: string) {
 
 export function trimProperties(profile: Profile): Profile {
   return <Profile>{
-    label: profile.label.replace("$(check)", "").trim(),
+    label: profile.label.trim(),
     email: profile.email.trim(),
     userName: profile.userName.trim(),
     selected: profile.selected,

@@ -3,6 +3,7 @@ import { StatusBarAlignment, StatusBarItem, ThemeColor, window, workspace } from
 import * as Constants from "../constants";
 import { Profile } from "../models";
 import { getCurrentFolder, Logger } from "../util";
+import { getStatusBarLocation } from "../config";
 
 export class ProfileStatusBar {
   private static _instance: ProfileStatusBar;
@@ -16,8 +17,7 @@ export class ProfileStatusBar {
   }
 
   private constructor() {
-    const location = workspace.getConfiguration("gitConfigUser").get<string>("statusBarLocation");
-    let align = location == 'left'? StatusBarAlignment.Left: StatusBarAlignment.Right;
+    let align = getStatusBarLocation();
     ProfileStatusBar._statusBar = window.createStatusBarItem(align, 1000000);
     Logger.instance.logInfo("Initializing status bar complete.");
   }
@@ -31,14 +31,13 @@ export class ProfileStatusBar {
       ProfileStatusBar._statusBar.text = `$(repo) ${profile.label}`;
       if (profile.label !== Constants.Application.APPLICATION_NAME) {
         if (usedInRepo) {
-          ProfileStatusBar._statusBar.text = `$(repo) ${basename(folderPath)} $(arrow-small-right) ${profile.label.replace("$(check)", "").trim()} $(check)`;
+          ProfileStatusBar._statusBar.text = `$(repo) ${basename(folderPath)} $(arrow-small-right) ${profile.label} $(check)`;
           ProfileStatusBar._statusBar.backgroundColor = new ThemeColor("statusBarItem.activeBackground");
-          tooltip = `Profile: ${profile.userName} (${profile.email})\r\nClick status bar icon for more options`;
         } else {
-          ProfileStatusBar._statusBar.text = `$(repo) ${basename(folderPath)} $(arrow-small-right) ${profile.label.replace("$(alert)", "").trim()} $(alert)`;
+          ProfileStatusBar._statusBar.text = `$(repo) ${basename(folderPath)} $(arrow-small-right) ${profile.label} $(alert)`;
           ProfileStatusBar._statusBar.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
-          tooltip = `Profile: ${profile.userName} (${profile.email})\r\nClick status bar icon for more options`;
         }
+        tooltip = `Profile: ${profile.userName} (${profile.email})\r\nClick status bar icon for more options`;
       }
     }
     ProfileStatusBar._statusBar.tooltip = tooltip;

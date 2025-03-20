@@ -15,8 +15,8 @@ export async function activate(context: ExtensionContext) {
 
     context.subscriptions.push(window.onDidChangeActiveTextEditor(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
     context.subscriptions.push(workspace.onDidChangeWorkspaceFolders(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
-    context.subscriptions.push(workspace.onDidOpenTextDocument(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
-    context.subscriptions.push(workspace.onDidCloseTextDocument(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
+    // context.subscriptions.push(workspace.onDidOpenTextDocument(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
+    // context.subscriptions.push(workspace.onDidCloseTextDocument(async () => await commands.executeCommand(constants.CommandIds.GET_USER_PROFILE, false)));
 
     Logger.instance.logInfo("Initializing status bar");
 
