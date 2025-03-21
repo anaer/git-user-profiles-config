@@ -102,28 +102,28 @@ export async function getUserProfile(fromStatusBar = false, notProfileSwitch = t
   const workspaceFolder = validatedWorkspace.folder || ".\\";
 
   let configInSync = false;
+  const currentGitConfig = await util.getCurrentGitConfig(workspaceFolder);
   if (validatedWorkspace.isValid) {
-    const currentGitConfig = await util.getCurrentGitConfig(workspaceFolder);
     configInSync = !util.isNameAndEmailEmpty(currentGitConfig) && util.hasSameNameAndEmail(currentGitConfig, selectedProfile);
-
-    if (!configInSync){
-        const matchingProfile = vscProfiles.find((profile) => util.hasSameNameAndEmail(profile, currentGitConfig));
-        if(matchingProfile){
-          return matchingProfile;
-        }
-
-        if(workspace.workspaceFolders?.length === 1){
-          const sameLabelProfile = getVscProfile(selectedProfile.label);
-          if (sameLabelProfile) {
-            updateGitConfig(workspaceFolder, sameLabelProfile)
-            // window.showInformationMessage("User name and email auto-updated in git config file.");
-            return sameLabelProfile;
-          }
-        }
-    }
   }
 
   if (!fromStatusBar) {
+    if (!configInSync) {
+      const matchingProfile = vscProfiles.find((profile) => util.hasSameNameAndEmail(profile, currentGitConfig));
+      if (matchingProfile) {
+        return matchingProfile;
+      }
+
+      if (workspace.workspaceFolders?.length === 1) {
+        const sameLabelProfile = getVscProfile(selectedProfile.label);
+        if (sameLabelProfile) {
+          updateGitConfig(workspaceFolder, sameLabelProfile);
+          // window.showInformationMessage("User name and email auto-updated in git config file.");
+          return sameLabelProfile;
+        }
+      }
+    }
+
     if (vscProfiles.length === 0 || !validatedWorkspace.isValid) {
       return emptyProfile;
     }
